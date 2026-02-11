@@ -28,8 +28,7 @@ class Smb2StreamConsumer extends SmbStreamConsumer {
     //     : this.writeSize;
 
     do {
-      int w =
-          len > SmbStreamConsumer.blockSize ? SmbStreamConsumer.blockSize : len;
+      int w = len > blockSize ? blockSize : len;
       Smb2WriteRequest wr = Smb2WriteRequest(
         tree.config,
         fileId,

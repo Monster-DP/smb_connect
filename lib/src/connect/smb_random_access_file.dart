@@ -93,7 +93,7 @@ class SmbRandomAccessFile implements RandomAccessFile {
   int _bufferFilePosition = 0;
   int _bufferReadPosition = 0;
   int _bufferLength = 0;
-  final Uint8List _buffer = Uint8List(0xFFFF);
+  final Uint8List _buffer = Uint8List(0x100000); // 1MB read buffer
 
   void _clearReadBuffer() {
     _bufferReadPosition = 0;
@@ -116,14 +116,17 @@ class SmbRandomAccessFile implements RandomAccessFile {
   }
 
   int readFromBuffer(List<int> dst, int start, int length) {
-    int res = 0;
-    while (start < dst.length && _bufferReadPosition < _bufferLength) {
-      dst[start] = _buffer[_bufferReadPosition];
-      _bufferReadPosition++;
-      start++;
-      res++;
+    int available = _bufferLength - _bufferReadPosition;
+    int toCopy = length < available ? length : available;
+    if (toCopy <= 0) return 0;
+    int end = start + toCopy;
+    if (end > dst.length) {
+      toCopy = dst.length - start;
+      end = dst.length;
     }
-    return res;
+    dst.setRange(start, end, _buffer, _bufferReadPosition);
+    _bufferReadPosition += toCopy;
+    return toCopy;
   }
 
   bool _positionInBuffer(int offset) {

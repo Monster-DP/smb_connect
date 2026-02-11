@@ -7,7 +7,11 @@ abstract class SmbStreamConsumer implements StreamConsumer<List<int>> {
   final SmbFile file;
   final SmbTree tree;
   int position;
-  static const int blockSize = 64936;
+
+  int get blockSize {
+    int maxWrite = tree.transport.getNegotiatedResponse()?.getSendBufferSize() ?? 64936;
+    return maxWrite > 0 ? maxWrite : 64936;
+  }
 
   SmbStreamConsumer(this.file, this.tree, this.position);
 

@@ -33,8 +33,8 @@ class Smb1ComStreamConsumer extends _Smb1StreamConsumer {
 
     do {
       int w =
-          len > SmbStreamConsumer.blockSize ? SmbStreamConsumer.blockSize : len;
-      w = len > SmbStreamConsumer.blockSize ? SmbStreamConsumer.blockSize : len;
+          len > blockSize ? blockSize : len;
+      w = len > blockSize ? blockSize : len;
 
       _req.setParam2(fid, position, len - w, b, off, w);
       tree.prepare(_req);
@@ -62,8 +62,8 @@ class Smb1ComAndXStreamConsumer extends _Smb1StreamConsumer {
 
     do {
       int w =
-          len > SmbStreamConsumer.blockSize ? SmbStreamConsumer.blockSize : len;
-      w = len > SmbStreamConsumer.blockSize ? SmbStreamConsumer.blockSize : len;
+          len > blockSize ? blockSize : len;
+      w = len > blockSize ? blockSize : len;
 
       _reqx.setParam2(fid, position, len - w, b, off, w);
       // if ((flags & 1) != 0) {

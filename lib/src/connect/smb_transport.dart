@@ -525,7 +525,7 @@ class SmbTransport {
   }
 
   BufferCache getBufferCache() {
-    return BufferCacheImpl(config.maximumBufferSize); // getBufferCacheSize());
+    return config.bufferCache;
   }
 
   Future<T?> send<T extends CommonServerMessageBlockResponse>(
@@ -706,7 +706,7 @@ class SmbTransport {
     // }
   }
 
-  Duration waitResponseTimeout = Duration(seconds: 3);
+  Duration waitResponseTimeout = Duration(seconds: 30);
 
   Future<CommonServerMessageBlockResponse> waitResponse(
     int key,
@@ -954,13 +954,24 @@ class SmbTransport {
 
 class BufferCacheImpl extends BufferCache {
   final int bufferSize;
+  final List<Uint8List> _pool = [];
+  static const int _maxPoolSize = 4;
+
   BufferCacheImpl(this.bufferSize);
 
   @override
   Uint8List getBuffer() {
+    if (_pool.isNotEmpty) {
+      return _pool.removeLast();
+    }
     return Uint8List(bufferSize);
   }
 
   @override
-  void releaseBuffer(Uint8List buf) {}
+  void releaseBuffer(Uint8List buf) {
+    if (buf.length == bufferSize && _pool.length < _maxPoolSize) {
+      buf.fillRange(0, buf.length, 0);
+      _pool.add(buf);
+    }
+  }
 }

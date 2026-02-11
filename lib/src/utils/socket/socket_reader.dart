@@ -128,21 +128,31 @@ class SocketReader1 extends SocketReader {
 class SocketReader2 extends SocketReader {
   final bool debugPrint;
   late StreamSubscription _subscription;
+  Completer<void>? _dataWaiter;
+  bool _closed = false;
 
   SocketReader2(super._socket, Function update, {this.debugPrint = false}) {
     _subscription = _socket.listen(
       (event) {
         if (debugPrint) {
           print("read[${event.length}]: ${event.toHexString()}");
-          // print("listen ${event.length}");
         }
         _chunks.add(event);
         _chunkBytes += event.length;
+        // Wake up any waiting reader immediately
+        if (_dataWaiter != null && !_dataWaiter!.isCompleted) {
+          _dataWaiter!.complete();
+        }
         update();
       },
       onDone: () {
         if (debugPrint) {
           print("Smb Reader closed");
+        }
+        _closed = true;
+        // Wake up waiter so it can detect closure
+        if (_dataWaiter != null && !_dataWaiter!.isCompleted) {
+          _dataWaiter!.complete();
         }
         _socket.close();
       },
@@ -152,19 +162,29 @@ class SocketReader2 extends SocketReader {
   @override
   Future<int> _readChunkFor(int bytes) async {
     var readed = _readedBytes();
-    int n = 0;
     while (bytes > readed) {
-      await Future.delayed(Duration(milliseconds: 1));
-      readed = _readedBytes();
-      n++;
-      if (n >= 3000) {
-        throw "Can't read $bytes from Socket!";
+      if (_closed) {
+        throw "Can't read $bytes from Socket: connection closed";
       }
+      // Event-driven wait: no polling, zero delay
+      _dataWaiter = Completer<void>();
+      await _dataWaiter!.future.timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw "Can't read $bytes from Socket: timeout";
+        },
+      );
+      _dataWaiter = null;
+      readed = _readedBytes();
     }
     return readed;
   }
 
   Future close() async {
+    _closed = true;
+    if (_dataWaiter != null && !_dataWaiter!.isCompleted) {
+      _dataWaiter!.complete();
+    }
     await _subscription.cancel();
   }
 }

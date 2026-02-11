@@ -105,8 +105,8 @@ class BaseConfiguration implements Configuration {
     this.isUseUnicode = true,
     this.listSize = 65435,
     this.listCount = 200,
-    this.maximumBufferSize = 0x10000,
-    this.transactionBufferSize = 0xFFFF - 512,
+    this.maximumBufferSize = 0x100000 + 256, // 1MB + overhead
+    this.transactionBufferSize = 0x100000, // 1MB
     this.bufferCacheSize = 16,
     this.sendBufferSize = SmbConstants.DEFAULT_SND_BUF_SIZE,
     this.receiveBufferSize = SmbConstants.DEFAULT_RCV_BUF_SIZE,

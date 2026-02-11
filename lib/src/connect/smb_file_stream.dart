@@ -27,7 +27,8 @@ Stream<Uint8List> smbOpenRead(
 ]) async* {
   // int openReadNum = openReadNextNum++;
   length = length ?? (file.size - start);
-  var buffSize = min(length, 0x10000);
+  int maxRead = tree.transport.getNegotiatedResponse()?.getReceiveBufferSize() ?? 0x10000;
+  var buffSize = min(length, maxRead);
   var position = 0;
   Uint8List buff = Uint8List(buffSize);
   do {
@@ -63,7 +64,8 @@ void readAsync(
   StreamController<Uint8List> controller,
 ) async {
   length ??= (file.size - start);
-  var buffSize = min(length, 0x10000);
+  int maxRead = tree.transport.getNegotiatedResponse()?.getReceiveBufferSize() ?? 0x10000;
+  var buffSize = min(length, maxRead);
   // int index = 0;
   var position = 0;
   Uint8List buff = Uint8List(buffSize);
@@ -150,7 +152,8 @@ Future<int> smbReadFromFile(
 
   SmbComReadAndXResponse response = SmbComReadAndXResponse(tree.config, b, off);
   int r, n;
-  int blockSize = 64936;
+  int maxRead = tree.transport.getNegotiatedResponse()?.getReceiveBufferSize() ?? 64936;
+  int blockSize = maxRead > 0 ? maxRead : 64936;
   // (type == SmbConstants.TYPE_FILESYSTEM) ? readSizeFile : readSize;
   do {
     r = len > blockSize ? blockSize : len;
