@@ -18,32 +18,52 @@ import 'package:smb_connect/src/smb_constants.dart';
 int openReadNextNum = 0;
 
 Stream<Uint8List> smbOpenRead(
-    SmbFile file, SmbTree tree, Uint8List? fileId, int fid, int start,
-    [int? length]) async* {
+  SmbFile file,
+  SmbTree tree,
+  Uint8List? fileId,
+  int fid,
+  int start, [
+  int? length,
+]) async* {
   // int openReadNum = openReadNextNum++;
   length = length ?? (file.size - start);
-  var buffSize = min(length, 0xFFF);
+  var buffSize = min(length, 0x10000);
   var position = 0;
   Uint8List buff = Uint8List(buffSize);
   do {
     var remain = length - position;
     var readLen = min(buff.length, remain);
     var res = await smbReadFromFile(
-        file, tree, fileId, fid, buff, position + start, 0, readLen);
-    if (readLen == buff.length) {
+      file,
+      tree,
+      fileId,
+      fid,
+      buff,
+      position + start,
+      0,
+      readLen,
+    );
+    if (res == buff.length) {
       yield buff;
     } else {
-      yield Uint8List.view(buff.buffer, 0, readLen);
+      yield Uint8List.view(buff.buffer, 0, res);
     }
     position += res;
   } while (position < length);
   await smbCloseFile(file, tree, fileId, fid);
 }
 
-void readAsync(SmbFile file, SmbTree tree, Uint8List? fileId, int fid,
-    int start, int? length, StreamController<Uint8List> controller) async {
+void readAsync(
+  SmbFile file,
+  SmbTree tree,
+  Uint8List? fileId,
+  int fid,
+  int start,
+  int? length,
+  StreamController<Uint8List> controller,
+) async {
   length ??= (file.size - start);
-  var buffSize = min(length, 0xFFF);
+  var buffSize = min(length, 0x10000);
   // int index = 0;
   var position = 0;
   Uint8List buff = Uint8List(buffSize);
@@ -51,11 +71,19 @@ void readAsync(SmbFile file, SmbTree tree, Uint8List? fileId, int fid,
     var remain = length - position;
     var readLen = min(buff.length, remain);
     var res = await smbReadFromFile(
-        file, tree, fileId, fid, buff, start + position, 0, readLen);
-    if (readLen == buff.length) {
+      file,
+      tree,
+      fileId,
+      fid,
+      buff,
+      start + position,
+      0,
+      readLen,
+    );
+    if (res == buff.length) {
       controller.add(buff);
     } else {
-      var lastBuff = Uint8List.view(buff.buffer, 0, readLen);
+      var lastBuff = Uint8List.view(buff.buffer, 0, res);
       controller.add(lastBuff);
     }
     position += res;
@@ -65,18 +93,30 @@ void readAsync(SmbFile file, SmbTree tree, Uint8List? fileId, int fid,
 }
 
 Stream<Uint8List> smbOpenRead2(
-    SmbFile file, SmbTree tree, Uint8List? fileId, int fid, int start,
-    [int? length]) {
+  SmbFile file,
+  SmbTree tree,
+  Uint8List? fileId,
+  int fid,
+  int start, [
+  int? length,
+]) {
   var controller = StreamController<Uint8List>.broadcast();
   readAsync(file, tree, fileId, fid, start, length, controller);
   return controller.stream;
 }
 
 Future<void> smbCloseFile(
-    SmbFile file, SmbTree tree, Uint8List? fileId, int fid) async {
+  SmbFile file,
+  SmbTree tree,
+  Uint8List? fileId,
+  int fid,
+) async {
   if (tree.transport.isSMB2()) {
-    Smb2CloseRequest closeReq =
-        Smb2CloseRequest(tree.config, fileId: fileId, fileName: file.uncPath);
+    Smb2CloseRequest closeReq = Smb2CloseRequest(
+      tree.config,
+      fileId: fileId,
+      fileName: file.uncPath,
+    );
     closeReq.setCloseFlags(Smb2CloseResponse.SMB2_CLOSE_FLAG_POSTQUERY_ATTRIB);
     tree.prepare(closeReq);
     await tree.transport.sendrecv(closeReq, params: {RequestParam.NO_RETRY});
@@ -85,14 +125,25 @@ Future<void> smbCloseFile(
     var closeReq = SmbComClose(tree.config, fid, lastWriteTime);
     var closeResp = SmbComBlankResponse(tree.config);
     tree.prepare(closeReq);
-    await tree.transport.sendrecv(closeReq,
-        response: closeResp, params: {RequestParam.NO_RETRY});
+    await tree.transport.sendrecv(
+      closeReq,
+      response: closeResp,
+      params: {RequestParam.NO_RETRY},
+    );
   }
 }
 
-Future<int> smbReadFromFile(SmbFile file, SmbTree tree, Uint8List? fileId,
-    int fid, Uint8List b, int position, int off, int len,
-    {bool largeReadX = false}) async {
+Future<int> smbReadFromFile(
+  SmbFile file,
+  SmbTree tree,
+  Uint8List? fileId,
+  int fid,
+  Uint8List b,
+  int position,
+  int off,
+  int len, {
+  bool largeReadX = false,
+}) async {
   int fp = position;
   int start = fp;
   int type = SmbConstants.TYPE_FILESYSTEM; //file.getType();
@@ -121,8 +172,10 @@ Future<int> smbReadFromFile(SmbFile file, SmbTree tree, Uint8List? fileId,
 
       // try {
       tree.prepare(request);
-      Smb2ReadResponse resp = await tree.transport
-          .sendrecv(request, params: {RequestParam.NO_RETRY});
+      Smb2ReadResponse resp = await tree.transport.sendrecv(
+        request,
+        params: {RequestParam.NO_RETRY},
+      );
       n = resp.dataLength;
       // } catch (e) {
       //   //SmbException
@@ -142,8 +195,13 @@ Future<int> smbReadFromFile(SmbFile file, SmbTree tree, Uint8List? fileId,
       continue;
     }
 
-    SmbComReadAndX request =
-        SmbComReadAndX(tree.config, fid, fp, r, andx: null);
+    SmbComReadAndX request = SmbComReadAndX(
+      tree.config,
+      fid,
+      fp,
+      r,
+      andx: null,
+    );
     if (type == SmbConstants.TYPE_NAMED_PIPE) {
       request.minCount = 1024;
       request.maxCount = 1024;
@@ -153,8 +211,11 @@ Future<int> smbReadFromFile(SmbFile file, SmbTree tree, Uint8List? fileId,
       request.setOpenTimeout((r >> 16) & 0xFFFF);
     }
     tree.prepare(request);
-    response = await tree.transport
-        .sendrecv(request, response: response, params: {RequestParam.NO_RETRY});
+    response = await tree.transport.sendrecv(
+      request,
+      response: response,
+      params: {RequestParam.NO_RETRY},
+    );
     // th.send(request, response: response, params: {RequestParam.NO_RETRY});
     n = response.getDataLength();
     // } catch (se) {
