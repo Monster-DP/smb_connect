@@ -7,7 +7,6 @@ import 'package:smb_connect/src/connect/impl/smb1/com/smb_com_write_response.dar
 import 'package:smb_connect/src/connect/smb_file.dart';
 import 'package:smb_connect/src/connect/smb_file_stream.dart';
 import 'package:smb_connect/src/connect/smb_random_access_file.dart';
-import 'package:smb_connect/src/connect/smb_stream_consumer.dart';
 import 'package:smb_connect/src/smb_constants.dart';
 
 typedef OpenFileSmb1Fuction = Future<(int, SmbFile)> Function(
@@ -63,13 +62,14 @@ class Smb1RandomAccessFileController extends SmbRandomAccessFileController {
     final SmbComWrite req = SmbComWrite(tree.config);
     final SmbComWriteResponse resp = SmbComWriteResponse(tree.config);
 
+    int maxWrite = tree.transport.getNegotiatedResponse()?.getSendBufferSize() ?? 64936;
+    int blkSize = maxWrite > 0 ? maxWrite : 64936;
     int off = 0;
     int len = length;
 
     do {
-      int w =
-          len > SmbStreamConsumer.blockSize ? SmbStreamConsumer.blockSize : len;
-      w = len > SmbStreamConsumer.blockSize ? SmbStreamConsumer.blockSize : len;
+      int w = len > blkSize ? blkSize : len;
+      w = len > blkSize ? blkSize : len;
 
       req.setParam2(fid, position, len - w, buff, off, w);
       tree.prepare(req);
@@ -87,13 +87,14 @@ class Smb1RandomAccessFileController extends SmbRandomAccessFileController {
     final SmbComWriteAndX req = SmbComWriteAndX(tree.config);
     final SmbComWriteAndXResponse resp = SmbComWriteAndXResponse(tree.config);
 
+    int maxWrite = tree.transport.getNegotiatedResponse()?.getSendBufferSize() ?? 64936;
+    int blkSize = maxWrite > 0 ? maxWrite : 64936;
     int off = 0;
     int len = length;
 
     do {
-      int w =
-          len > SmbStreamConsumer.blockSize ? SmbStreamConsumer.blockSize : len;
-      w = len > SmbStreamConsumer.blockSize ? SmbStreamConsumer.blockSize : len;
+      int w = len > blkSize ? blkSize : len;
+      w = len > blkSize ? blkSize : len;
 
       req.setParam2(fid, position, len - w, buff, off, w);
       tree.prepare(req);
